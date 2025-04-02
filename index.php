@@ -43,7 +43,7 @@ if($_SERVER['REQUEST_METHOD'] == "POST"){
           // Verify password
           if(password_verify($login_password, $user['password'])) {
             // Password is correct, start a session
-            session_start();
+            include __DIR__ . '/session_config.php';
             
             // Store data in session variables
             $_SESSION["loggedin"] = true;
@@ -115,6 +115,13 @@ if($_SERVER['REQUEST_METHOD'] == "POST"){
               echo "<div class=\"alert alert-success\" role=\"alert\">" . htmlspecialchars($message, ENT_QUOTES, 'UTF-8') . "</div>";
             }
           ?>
+          
+                <!-- ADD THE TIMEOUT MESSAGE HERE, AFTER EXISTING ALERTS BUT BEFORE THE LOGIN FORM -->
+      <?php if (isset($_GET['timeout']) && $_GET['timeout'] == 1): ?>
+        <div class="alert alert-warning" role="alert">
+          <strong>Session Timeout:</strong> Your session has expired due to inactivity. Please log in again.
+        </div>
+      <?php endif; ?>
           
           <div class="welcome-text">
             <p class="lead text-center">

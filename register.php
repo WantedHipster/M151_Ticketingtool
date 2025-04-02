@@ -1,5 +1,5 @@
 <?php
-// Include database connection using relative path
+// Include database connection
 require_once __DIR__ . '/db_connect.php';
 
 // Initialisierung
@@ -13,6 +13,11 @@ function sanitizeInput($data) {
   $data = htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
   return $data;
 }
+
+// Check if any admin exists
+$adminCheckQuery = "SELECT id FROM users WHERE role = 'admin' LIMIT 1";
+$adminResult = $mysqli->query($adminCheckQuery);
+$adminExists = $adminResult->num_rows > 0;
 
 // Wurden Daten mit "POST" gesendet?
 if($_SERVER['REQUEST_METHOD'] == "POST"){
@@ -96,6 +101,7 @@ if($_SERVER['REQUEST_METHOD'] == "POST"){
         email VARCHAR(100) NOT NULL UNIQUE,
         username VARCHAR(50) NOT NULL UNIQUE,
         password VARCHAR(255) NOT NULL,
+        role ENUM('user', 'admin') NOT NULL DEFAULT 'user',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )";
       $mysqli->query($createTableQuery);
@@ -103,9 +109,17 @@ if($_SERVER['REQUEST_METHOD'] == "POST"){
       // Hash the password
       $hashed_password = password_hash($password, PASSWORD_DEFAULT);
       
+      // Determine role
+      $role = "user"; // Default role
+      
+      // Check if role selection was shown and submitted
+      if (!$adminExists && isset($_POST["role"]) && ($_POST["role"] === "admin" || $_POST["role"] === "user")) {
+          $role = $_POST["role"];
+      }
+      
       // Prepare the SQL statement
-      $stmt = $mysqli->prepare("INSERT INTO users (firstname, lastname, email, username, password) VALUES (?, ?, ?, ?, ?)");
-      $stmt->bind_param("sssss", $firstname, $lastname, $email, $username, $hashed_password);
+      $stmt = $mysqli->prepare("INSERT INTO users (firstname, lastname, email, username, password, role) VALUES (?, ?, ?, ?, ?, ?)");
+      $stmt->bind_param("ssssss", $firstname, $lastname, $email, $username, $hashed_password, $role);
       
       // Execute the statement
       if($stmt->execute()){
@@ -121,15 +135,7 @@ if($_SERVER['REQUEST_METHOD'] == "POST"){
       $error = "Datenbankfehler: " . $e->getMessage();
     }
   }
-
-  // keine Fehler vorhanden
-  if(empty($error)){
-    $message = "Keine Fehler vorhanden";
-  }
 }
-
-
-
 ?>
 
 <!DOCTYPE html>
@@ -212,6 +218,19 @@ if($_SERVER['REQUEST_METHOD'] == "POST"){
                   pattern="^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?])(?!.*[äöüÄÖÜß]).{8,}$"
                   title="Passwort muss mindestens 8 Zeichen lang sein und Gross- und Kleinbuchstaben, Zahlen und Sonderzeichen enthalten. Keine Umlaute erlaubt.">
         </div>
+        
+        <!-- Role selection (only visible if no admins exist yet) -->
+        <?php if(!$adminExists): ?>
+        <div class="form-group">
+          <label for="role">Role *</label>
+          <select name="role" class="form-control" id="role">
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+          <span class="help-block">Since there are no admins yet, you can select a role.</span>
+        </div>
+        <?php endif; ?>
+        
         <button type="submit" name="button" value="submit" class="btn btn-info">Senden</button>
         <button type="reset" name="button" value="reset" class="btn btn-warning">Löschen</button>
         <a href="index.php" class="btn btn-default">Zurück zur Startseite</a>
